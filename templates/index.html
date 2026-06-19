@@ -18,6 +18,7 @@
         .msg { margin: 5px 0; }
         .file { margin: 5px 0; }
         .file strong { color: #2c3e50; }
+        .file a { color: #1a73e8; text-decoration: underline; cursor: pointer; }
 
         .bottom-bar {
             display: flex;
@@ -86,13 +87,41 @@
         const socket = io();
         let archivoSeleccionado = null;
 
+        // Función para descargar archivo mediante fetch y blob (evita error de certificado)
+        function descargarArchivo(urlBase, nombreArchivo) {
+            const url = urlBase + "?token=" + UPLOAD_TOKEN;
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error('Error de red');
+                    return response.blob();
+                })
+                .then(blob => {
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = nombreArchivo || 'archivo';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(blobUrl);
+                    document.body.removeChild(a);
+                })
+                .catch(error => {
+                    alert('No se pudo descargar el archivo. Verifica tu conexión.');
+                    console.error(error);
+                });
+        }
+
         socket.on('historial', function(historial) {
             historial.forEach(function(entrada) {
                 if (entrada.tipo === 'mensaje') {
                     agregarMensaje(`${entrada.datos.texto}`);
                 } else if (entrada.tipo === 'archivo') {
                     const d = entrada.datos;
-                    agregarMensaje(`${d.original}<a href="${d.url}" download> Descargar</a>`, 'file');
+                    // Crear enlace que llame a descargarArchivo
+                    agregarMensaje(
+                        `${d.original} <a onclick="descargarArchivo('${d.url}', '${d.original}')" style="cursor:pointer;">Descargar</a>`,
+                        'file'
+                    );
                 }
             });
         });
@@ -102,7 +131,10 @@
         });
 
         socket.on('archivo', function(data) {
-            agregarMensaje(`${data.original}<a href="${data.url}" download> Descargar</a>`, 'file');
+            agregarMensaje(
+                `${data.original} <a onclick="descargarArchivo('${data.url}', '${data.original}')" style="cursor:pointer;">Descargar</a>`,
+                'file'
+            );
         });
 
         function agregarMensaje(contenido, clase = 'msg') {
@@ -112,12 +144,6 @@
             div.innerHTML = contenido;
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
-        }
-
-        function formatearTamaño(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-            else return (bytes / 1048576).toFixed(1) + ' MB';
         }
 
         function enviarMensaje() {
