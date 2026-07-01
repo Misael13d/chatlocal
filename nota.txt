@@ -1,1 +1,4 @@
 pip install flask flask-socketio cryptography
+
+
+ xrandr --output HDMI-A-0 --mode 1920x1080 --rate 71.91
